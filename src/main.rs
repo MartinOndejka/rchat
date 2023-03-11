@@ -1,9 +1,8 @@
 use reqwest::blocking::Client;
 use spinoff::{spinners, Color, Spinner};
-use std::io;
 use std::io::Write;
+use std::{fs, io, process};
 
-const API_KEY: &str = "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";
 const OPENAI_API_URL: &str = "https://api.openai.com/v1";
 const CHATGPT_MODEL: &str = "gpt-3.5-turbo";
 
@@ -25,11 +24,17 @@ struct Choice {
 }
 
 #[derive(serde::Deserialize)]
-struct Response {
-    choices: Vec<Choice>,
+struct Error {
+    message: String,
 }
 
-fn prompt(client: &Client, message_history: &mut Vec<Message>) -> bool {
+#[derive(serde::Deserialize)]
+struct Response {
+    error: Option<Error>,
+    choices: Option<Vec<Choice>>,
+}
+
+fn prompt(client: &Client, api_key: &str, message_history: &mut Vec<Message>) -> bool {
     print!("> ");
     io::stdout().flush().ok();
 
@@ -38,7 +43,9 @@ fn prompt(client: &Client, message_history: &mut Vec<Message>) -> bool {
         .read_line(&mut input)
         .expect("Failed to read line.");
 
-    if input.trim() == "" { return false; }
+    if input.trim() == "" {
+        return false;
+    }
 
     let message = Message {
         role: "user".to_string(),
@@ -51,7 +58,7 @@ fn prompt(client: &Client, message_history: &mut Vec<Message>) -> bool {
 
     let response = client
         .post(format!("{}/chat/completions", OPENAI_API_URL))
-        .header("Authorization", format!("Bearer {}", API_KEY))
+        .header("Authorization", format!("Bearer {}", api_key))
         .json(&Payload {
             model: CHATGPT_MODEL.to_string(),
             messages: message_history.to_vec(),
@@ -61,15 +68,30 @@ fn prompt(client: &Client, message_history: &mut Vec<Message>) -> bool {
 
     spinner.clear();
 
-    let response_payload = response
+    let mut response_messages = match response
         .json::<Response>()
-        .expect("Failed to parse response.");
+        .expect("Failed to parse response.")
+    {
+        Response {
+            choices: Some(choices),
+            ..
+        } => choices
+            .iter()
+            .map(|choice| choice.message.clone())
+            .collect::<Vec<Message>>(),
 
-    let mut response_messages = response_payload
-        .choices
-        .iter()
-        .map(|choice| choice.message.clone())
-        .collect::<Vec<Message>>();
+        Response {
+            error: Some(error), ..
+        } => {
+            println!("Error: {}", error.message);
+            process::exit(1);
+        }
+
+        _ => {
+            println!("Error: No response.");
+            process::exit(1);
+        }
+    };
 
     response_messages.iter().for_each(|message| {
         println!("< {}", message.content.trim());
@@ -87,5 +109,12 @@ fn main() {
 
     let mut message_history: Vec<Message> = Vec::new();
 
-    while prompt(&client, &mut message_history) {}
+    let api_key_path = directories::UserDirs::new()
+        .expect("Failed to get user directories.")
+        .home_dir()
+        .join(".openai-key");
+
+    let api_key = fs::read_to_string(api_key_path).expect("Failed to read API key.");
+
+    while prompt(&client, &api_key.trim(), &mut message_history) {}
 }
