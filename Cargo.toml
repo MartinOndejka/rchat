@@ -1,6 +1,7 @@
 [package]
 name = "rchat"
 version = "0.1.0"
+edition = "2021"
 license = "MIT"
 description = "ChatGPT terminal client written in Rust."
 homepage = "https://github.com/MartinOndejka/rchat"
