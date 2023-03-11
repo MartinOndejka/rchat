@@ -103,6 +103,19 @@ fn prompt(client: &Client, api_key: &str, message_history: &mut Vec<Message>) ->
 }
 
 fn main() {
+    if std::env::args().nth(1) == Some("--set-key".to_string()) {
+        let new_key = std::env::args().nth(2).expect("No key provided.");
+
+        let api_key_path = directories::UserDirs::new()
+            .expect("Failed to get user directories.")
+            .home_dir()
+            .join(".openai-key");
+
+        fs::write(api_key_path, new_key).expect("Failed to write API key.");
+
+        process::exit(0);
+    }
+
     println!("Ask me a question.");
 
     let client = Client::new();
