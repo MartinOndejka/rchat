@@ -1,9 +1,11 @@
 [package]
 name = "rchat"
 version = "0.1.0"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+license = "MIT"
+description = "ChatGPT terminal client written in Rust."
+homepage = "https://github.com/MartinOndejka/rchat"
+repository = "https://github.com/MartinOndejka/rchat"
+readme = "README.md"
 
 [dependencies]
 directories = "4.0.1"
